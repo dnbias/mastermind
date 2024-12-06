@@ -23,7 +23,7 @@
   ?f <- (guess (step ?s) (g ?k1 ?k2 ?k3 ?k4))
   (secret-code (code ?k1 ?k2 ?k3 ?k4) )
   =>
-  (printout t "You have discovered the secrete code!" crlf)
+  (printout t "You have discovered the secret code!" crlf)
   (retract ?f)
   (halt) 
 )
