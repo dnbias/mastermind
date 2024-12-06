@@ -24,3 +24,9 @@ CLIPS> (load "./3_Agent.clp")
 CLIPS> (reset)
 CLIPS> (run)
 '''
+
+or 
+'''
+>./clips -f go.bat
+CLIPS> (run)
+'''
