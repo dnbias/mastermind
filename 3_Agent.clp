@@ -18,7 +18,7 @@
 (defrule choose-agent
   (status (step 0) (mode computer))
   =>
-  (printout t "Choose your agent (Ada/Bill):" crlf)
+  (printout t "Choose your agent (ADA/BILL):" crlf)
   (bind ?input (readline))
   (printout t "You chose " ?input crlf)
   (assert (agent-type (name ?input)))
@@ -29,5 +29,5 @@
   (status (step ?s) (mode computer))
   =>
   (printout t "[" ?name "] guess number: " ?s crlf)
-  (if(eq ?name "Ada") then (focus ADA) else (if(eq ?name "Bill") then (focus BILL) ))
+  (if(eq ?name "ADA") then (focus ADA) else (if(eq ?name "BILL") then (focus BILL) ))
 )

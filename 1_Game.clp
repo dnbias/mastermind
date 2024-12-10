@@ -148,4 +148,18 @@
  (colors blue green red yellow orange white black purple)
  )
 
+(defrule for-computer (declare (salience -10))
+  (status (step ?s) (mode computer))
+  (answer (step ?s) (right-placed ?rp) (miss-placed ?mp))
+=>
+   (printout t "BP: " ?rp " WP: " ?mp crlf)
+)
 
+(defrule for-computer-gameover (declare (salience -15))
+  (status (step ?s) (mode computer))
+  (maxduration ?d&:(>= ?s ?d))
+  (secret-code (code $?code))
+=>
+   (printout t "GAME OVER!! " crlf)
+   (printout t "The secret code was: " $?code crlf)
+)
