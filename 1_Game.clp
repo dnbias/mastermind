@@ -28,6 +28,7 @@
   (halt) 
 )
 
+;; human mode
 (defrule prepare-answer
    (status (step ?s))
    (guess (step ?s))
@@ -89,9 +90,8 @@
   (status (step ?s) (mode human))
   (answer (step ?s) (right-placed ?rp) (miss-placed ?mp)) 
 =>
-   (printout t "Right placed " ?rp " missplaced " ?mp crlf)
+   (printout t "BP: " ?rp " WP: " ?mp crlf)
 )  
-
 
 (defrule for-humans-gameover (declare (salience -15))
   (status (step ?s) (mode human))
@@ -143,8 +143,6 @@
 	(retract ?s)
 	(assert (secret-code (code $?colors)))
 )
-
-
 
 (deffacts my-colors
  (colors blue green red yellow orange white black purple)
