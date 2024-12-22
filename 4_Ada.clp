@@ -39,10 +39,11 @@
 
     (assert (guess-computer (step 1) (code (create$ 5 6 7 8))))
     (assert (guess (step 1) (g orange white black purple)))
+    (printout t "> init-2" crlf)
     (printout t "(orange white black purple) (5 6 7 8)" crlf)
 )
 
-(defrule make-initial-guess
+(defrule make-first-guess
     ?guess-computer-0 <- (guess-computer (step 0) (code $?pw-0))
     (answer (step 0) (right-placed ?bp-0) (miss-placed ?wp-0))
     ?guess-computer-1 <- (guess-computer (step 1) (code $?pw-1))
@@ -65,6 +66,7 @@
 
     (assert (guess-computer (step 2) (code $?pw-n)))
     (assert (guess (step 2) (g (convert_code $?pw-n))))
+    (printout t "> make-first-guess" crlf)
     (printout t (convert_code $?pw-n) " " $?pw-n crlf)
 )
 
@@ -76,19 +78,22 @@
     (test(eq ?last-s (- ?s 1)))
     (possible-colors (colors $?cols))
     =>
-
     (bind ?l (length$ $?cols))
     (bind ?roll1 (random 1 ?l))
     (bind ?pos1 (nth$ ?roll1 $?cols))
+
     (bind ?roll2 ?roll1)
     (bind ?roll3 ?roll1)
     (bind ?roll4 ?roll1)
+
     (while (eq ?roll1 ?roll2)
         (bind ?roll2 (random 1 ?l)))
     (bind ?pos2 (nth$ ?roll2 $?cols))
+
     (while (or (eq ?roll1 ?roll3) (eq ?roll2 ?roll3))
         (bind ?roll3 (random 1 ?l)))
-    (bind ?pos3 (nth$ ?roll2 $?cols))
+    (bind ?pos3 (nth$ ?roll3 $?cols))
+
     (while (or (eq ?roll1 ?roll4) (or (eq ?roll2 ?roll4) (eq ?roll3 ?roll4)))
         (bind ?roll4 (random 1 ?l)))
     (bind ?pos4 (nth$ ?roll4 $?cols))
@@ -96,5 +101,6 @@
     (bind ?pw-n (create$ ?pos1 ?pos2 ?pos3 ?pos4))
     (assert (guess-computer (step ?s) (code ?pw-n)))
     (assert (guess (step ?s) (g (convert_code ?pw-n))))
+    (printout t "> make-guess" crlf)
     (printout t (convert_code ?pw-n)" "?pw-n crlf)
 )
