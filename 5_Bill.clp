@@ -16,6 +16,27 @@
     return (create$ (nth$(nth$ 1 $?number) $?colours) (nth$(nth$ 2 $?number)$?colours) (nth$(nth$ 3 $?number)$?colours)(nth$(nth$ 4 $?number) $?colours))
 )
 
+(deffunction swap(?pos1 ?pos2 $?list)
+    (bind ?n1 (nth$ ?pos1 $?list))
+    (bind ?n2 (nth$ ?pos2 $?list))
+    (bind ?i 1)
+    ?$updated-list <- (create$)
+    (while (<= ?i 4)
+        (if (eq ?i ?pos1) then
+            (insert$ $?updated-list ?n2)
+        else
+            (if (eq ?i ?pos2) then
+                (insert$ $?updated-list ?n1)
+            else
+                (bind ?n (nth$ ?i $?list))
+                (insert$ $?updated-list ?n)
+            )
+        )
+        (modify ?i (+ i 1))
+    )
+    return $?updated-list
+)
+
 (defrule init-1
     (status (step 0) (mode computer))
     =>
@@ -25,22 +46,58 @@
     (printout t "(blue green red yellow) (1 2 3 4)" crlf)
 )
 
+(defrule init-1-hit
+    (status (step 1) (mode computer))
+    (answer (step 0) (right-placed ?bp) (miss-placed ?wp))
+    (guess-computer (step 0) (code $?pw-0))
+    (test (eq (+ ?bp ?wp) 4))
+    ?pc <- (possible-colors (colors $?cols))
+    =>
+    (modify ?pc (colors (delete-member$ $?cols 5)))
+    (modify ?pc (colors (delete-member$ $?cols 6)))
+    (modify ?pc (colors (delete-member$ $?cols 7)))
+    (modify ?pc (colors (delete-member$ $?cols 8)))
+    (assert hit-1st-half)
+    (assert colors-found)
+    (bind $?pw (swap 1 2 $?pw-0))
+    (assert (guess-computer (step 1) (code $?pw)))
+    (assert (guess (step 1) (g (convert_code $?pw))))
+    (printout t "> init-1-hit" crlf)
+    (printout t (convert_code $?pw-n) " " $?pw-n crlf)
+
+)
+
 (defrule init-2
     (status (step 1) (mode computer))
     (answer (step 0) (right-placed ?bp) (miss-placed ?wp))
+    (test (< (+ ?bp ?wp) 4))
     ?pc <- (possible-colors (colors $?cols))
     =>
-    (if (eq (+ ?bp ?wp) 0) then
-        (modify ?pc (colors (delete-member$ $?cols 1)))
-        (modify ?pc (colors (delete-member$ $?cols 2)))
-        (modify ?pc (colors (delete-member$ $?cols 3)))
-        (modify ?pc (colors (delete-member$ $?cols 4)))
-    )
-
     (assert (guess-computer (step 1) (code (create$ 5 6 7 8))))
     (assert (guess (step 1) (g orange white black purple)))
     (printout t "> init-2" crlf)
     (printout t "(orange white black purple) (5 6 7 8)" crlf)
+)
+
+(defrule init-2-hit
+    (status (step 2) (mode computer))
+    (answer (step 1) (right-placed ?bp) (miss-placed ?wp))
+    (guess-computer (step 1) (code $?pw-1))
+    (test (eq (+ ?bp ?wp) 4))
+    ?pc <- (possible-colors (colors $?cols))
+    =>
+    (modify ?pc (colors (delete-member$ $?cols 1)))
+    (modify ?pc (colors (delete-member$ $?cols 2)))
+    (modify ?pc (colors (delete-member$ $?cols 3)))
+    (modify ?pc (colors (delete-member$ $?cols 4)))
+    (assert hit-2st-half)
+    (assert colors-found)
+    (bind $?pw (swap 1 2 $?pw-0))
+    (assert (guess-computer (step 2) (code $?pw)))
+    (assert (guess (step 2) (g (convert_code $?pw))))
+    (printout t "> init-2-hit" crlf)
+    (printout t (convert_code $?pw-n) " " $?pw-n crlf)
+
 )
 
 (defrule make-first-guess
@@ -49,18 +106,19 @@
     ?guess-computer-1 <- (guess-computer (step 1) (code $?pw-1))
     (answer (step 1) (right-placed ?bp-1) (miss-placed ?wp-1))
     (status (step 2) (mode computer))
+    ?pc <- (possible-colors (colors $?cols))
     =>
     (if (> ?bp-0 ?bp-1) then
         (bind ?pos1 (nth$ 1 $?pw-0))
         (bind ?pos2 (nth$ 2 $?pw-0))
         (bind ?pos3 (nth$ 1 $?pw-1))
         (bind ?pos4 (nth$ 2 $?pw-1))
-     else
+    else
         (bind ?pos1 (nth$ 1 $?pw-1))
         (bind ?pos2 (nth$ 2 $?pw-1))
         (bind ?pos3 (nth$ 1 $?pw-0))
         (bind ?pos4 (nth$ 2 $?pw-0))
-    )
+     )
 
     (bind $?pw-n (create$ ?pos1 ?pos2 ?pos3 ?pos4))
 
@@ -104,3 +162,198 @@
     (printout t "> make-guess" crlf)
     (printout t (convert_code ?pw-n)" "?pw-n crlf)
 )
+
+(defrule rule-out-colors
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s) (code $?pw))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (guess-computer (step ?last-s-1) (code $?pw-1))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (test(> ?s 2))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    ?pc <- (possible-colors (colors $?cols))
+    =>
+    (bind ?l (length$ $?cols))
+    (if (<= ?l 4) then
+        (assert (colors-found))
+    (printout t "> rule-out-colors" crlf)
+)
+
+(defrule guess-order-1st-0
+    (colors-found)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
+    (guess-computer (step ?last-s) (code ?n2 ?n1 ?n3 ?n4))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    =>
+    (if (> ?bp ?bp-1) then
+        (if (eq (- ?bp ?bp-1) 2) then
+            (assert found-1st)
+            (assert found-2nd)
+            (bind ?pw ($create ?n2 ?n1 ?n4 ?n3))
+        else
+            (bind ?pw ($create ?n3 ?n1 ?n2 ?n4))
+        )
+    else
+        (if (eq (- ?bp-1 ?bp) 2) then
+            (assert found-1st)
+            (assert found-2nd)
+            (bind ?pw ($create ?n1 ?n2 ?n4 ?n3))
+        else
+            (bind ?pw ($create ?n1 ?n3 ?n2 ?n4))
+        )
+    )
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t "> guess-order-1st-0" crlf)
+    (printout t (convert_code $?pw) " " $?pw crlf)
+)
+
+(defrule guess-order-1st-1
+    (colors-found)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s-1) (code ?n2 ?n1 ?n3 ?n4))
+    (guess-computer (step ?last-s) (code ?n3 ?n1 ?n2 ?n4))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    =>
+    (if (> ?bp ?bp-1) then
+        (if (eq (- ?bp ?bp-1) 2) then
+            (assert found-1st)
+            (assert found-3rd)
+            (bind ?pw ($create ?n3 ?n4 ?n2 ?n1))
+        else
+            (assert found-1st)
+            (bind ?pw ($create ?n1 ?n3 ?n2 ?n4))
+        )
+    else
+        (if (eq (- ?bp-1 ?bp) 2) then
+            (assert found-1st)
+            (assert found-3rd)
+            (bind ?pw ($create ?n2 ?n1 ?n3 ?n4))
+        else
+            (bind ?pw ($create ?n3 ?n1 ?n4 ?n2))
+        )
+    )
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t "> guess-order-1st-1" crlf)
+    (printout t (convert_code $?pw) " " $?pw crlf)
+)
+
+(defrule guess-order-3rd-0
+    (colors-found)
+    (assert found-1st)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
+    (guess-computer (step ?last-s) (code ?n1 ?n3 ?n2 ?n4))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    =>
+    (if (> ?bp ?bp-1) then
+        (assert found-2st)
+        (bind ?pw ($create ?n1 ?n3 ?n4 ?n2))
+    else
+        (bind ?pw ($create ?n1 ?n2 ?n4 ?n3))
+    )
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t "> guess-order-3rd-0" crlf)
+    (printout t (convert_code $?pw) " " $?pw crlf)
+
+)
+
+(defrule guess-order-3rd-1
+    (colors-found)
+    (assert found-1st)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
+    (guess-computer (step ?last-s) (code ?n1 ?n2 ?n4 ?n3))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    =>
+    (if (> ?bp ?bp-1) then
+        (assert found-4th)
+        (bind ?pw ($create ?n1 ?n4 ?n2 ?n3))
+    else
+        (bind ?pw ($create ?n1 ?n2 ?n4 ?n3))
+    )
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t "> guess-order-3rd-1" crlf)
+    (printout t (convert_code $?pw) " " $?pw crlf)
+)
+
+(defrule guess-order-3rd-2
+    (colors-found)
+    (assert found-1st)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
+    (guess-computer (step ?last-s) (code ?n1 ?n4 ?n2 ?n3))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    =>
+    (bind ?pw ($create ?n1 ?n2 ?n4 ?n3))
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t "> guess-order-3rd-2" crlf)
+    (printout t (convert_code $?pw) " " $?pw crlf)
+)
+
+(defrule guess-order-1st
+    (colors-found)
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s) (code $?pw))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (guess-computer (step ?last-s-1) (code $?pw-1))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    (possible-colors (colors $?cols))
+    =>
+    (bind ?pos1 (nth$ 1 $?pw))
+    (bind ?pos1-1 (nth$ 1 $?pw-1))
+    (if (member$ ?pos1 $?cols) then
+        (if (not (eq ?pos1 ?pos1-1)) then
+            (if (> ?bp ?bp-1) then
+                (if (eq (- ?bp ?bp-1) 2) then
+                    (assert found-1st)
+                    (if (and (eq (nth$ 3 $?pw) (nth$ 3 $?pw-1))
+                             (eq (nth$ 4 $?pw) (nth$ 4 $?pw-1)))
+                        (assert found-2nd)
+                    )
+                    (if (and (eq (nth$ 2 $?pw) (nth$ 2 $?pw-1))
+                             (eq (nth$ 4 $?pw) (nth$ 4 $?pw-1)))
+                        (assert found-3rd)
+                    )
+                    (if (and (eq (nth$ 2 $?pw) (nth$ 2 $?pw-1))
+                             (eq (nth$ 3 $?pw) (nth$ 3 $?pw-1)))
+                        (assert found-4th)
+                    )
+                else
+
+                )
+            )
+        else
+
+        )
+
+    else
+
+    )
+
+    (bind ?pw-n (create$ ?pos1 ?pos2 ?pos3 ?pos4))
+    (assert (guess-computer (step ?s) (code ?pw-n)))
+    (assert (guess (step ?s) (g (convert_code ?pw-n))))
+    (printout t "> guess-order-1st" crlf)
+    (printout t (convert_code ?pw-n)" "?pw-n crlf)
+)
+(defrule guess-order-2nd
