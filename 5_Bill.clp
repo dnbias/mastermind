@@ -1,5 +1,6 @@
 (defmodule BILL (import MAIN ?ALL) (import GAME ?ALL) (import AGENT ?ALL) (export ?ALL))
 
+
 (deftemplate guess-computer
     (slot step)
     (multislot code (allowed-values 1 2 3 4 5 6 7 8) (cardinality 4 4))
@@ -9,33 +10,56 @@
     (multislot colors (allowed-values 1 2 3 4 5 6 7 8) (cardinality 4 8))
 )
 
+(deftemplate hit-1st-half
+    (slot v (allowed-values TRUE FALSE)))
+(deftemplate hit-2nd-half
+    (slot v (allowed-values TRUE FALSE)))
+(deftemplate colors-found
+    (slot v (allowed-values TRUE FALSE)))
+(deftemplate found-1st)
+(deftemplate found-2nd)
+(deftemplate found-3rd)
+(deftemplate found-4th)
+
 ;; dato un numero, ritorna i colori associati
 ;; (1234) -> (blue green red yellow)
 (deffunction convert_code($?number)
-    (bind $?colours (create$  blue green red yellow orange white black purple ))
-    return (create$ (nth$(nth$ 1 $?number) $?colours) (nth$(nth$ 2 $?number)$?colours) (nth$(nth$ 3 $?number)$?colours)(nth$(nth$ 4 $?number) $?colours))
+    (bind $?colours (create$  blue green red yellow orange white black purple))
+    return (create$ (nth$ (nth$ 1 $?number) $?colours) (nth$(nth$ 2 $?number)$?colours)
+                    (nth$ (nth$ 3 $?number)$?colours)(nth$(nth$ 4 $?number) $?colours))
 )
 
 (deffunction swap(?pos1 ?pos2 $?list)
+    (printout t ">> swap" crlf)
+    (printout t $?list " " ?pos1 " " ?pos2 crlf)
+
+    (if (not (and(integerp ?pos1)(integerp ?pos2))) then
+        return FALSE)
+
     (bind ?n1 (nth$ ?pos1 $?list))
     (bind ?n2 (nth$ ?pos2 $?list))
+    (bind ?l (length$ $?list))
     (bind ?i 1)
     (bind $?updated-list (create$))
 
-    (while (<= ?i 4)
-        (if (eq ?i ?pos1) then
-            (insert$ $?updated-list 4 ?n2)
+    (while (<= ?i ?l)
+        (if (= ?i ?pos1) then
+            (insert$ $?updated-list ?l ?n2)
         else
-            (if (eq ?i ?pos2) then
-                (insert$ $?updated-list 4 ?n1)
+            (if (= ?i ?pos2) then
+                (insert$ $?updated-list ?l ?n1)
             else
                 (bind ?n (nth$ ?i $?list))
-                (insert$ $?updated-list 4 ?n)
+                (insert$ $?updated-list ?l ?n)
             )
         )
-        (modify ?i (+ i 1))
+        (bind ?i (+ ?i 1))
     )
 
+
+    (printout t $?updated-list crlf)
+
+    (printout t "<< swap" crlf)
     return $?updated-list
 )
 
@@ -59,12 +83,12 @@
     (modify ?pc (colors (delete-member$ $?cols 6)))
     (modify ?pc (colors (delete-member$ $?cols 7)))
     (modify ?pc (colors (delete-member$ $?cols 8)))
-    (assert (hit-1st-half))
-    (assert (colors-found))
+    (printout t "> init-1-hit" crlf)
+    (assert (hit-1st-half (v TRUE)))
+    (assert (colors-found (v TRUE)))
     (bind $?pw (swap 1 2 $?pw-0))
     (assert (guess-computer (step 1) (code $?pw)))
     (assert (guess (step 1) (g (convert_code $?pw))))
-    (printout t "> init-1-hit" crlf)
     (printout t (convert_code $?pw) " " $?pw crlf)
 
 )
@@ -92,8 +116,8 @@
     (modify ?pc (colors (delete-member$ $?cols 2)))
     (modify ?pc (colors (delete-member$ $?cols 3)))
     (modify ?pc (colors (delete-member$ $?cols 4)))
-    (assert (hit-2st-half))
-    (assert (colors-found))
+    (assert (hit-2nd-half (v TRUE)))
+    (assert (colors-found (v TRUE)))
     (bind $?pw (swap 1 2 $?pw-1))
     (assert (guess-computer (step 2) (code $?pw)))
     (assert (guess (step 2) (g (convert_code $?pw))))
@@ -177,13 +201,13 @@
     =>
     (bind ?l (length$ $?cols))
     (if (<= ?l 4) then
-        (assert (colors-found))
+        (assert (colors-found (v TRUE)))
     )
     (printout t "> rule-out-colors" crlf)
 )
 
 (defrule guess-order-1st-0
-    (colors-found)
+    (colors-found (v TRUE))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
     (guess-computer (step ?last-s) (code ?n2 ?n1 ?n3 ?n4))
@@ -192,6 +216,7 @@
     (test(eq ?last-s (- ?s 1)))
     (test(eq ?last-s-1 (- ?last-s 1)))
     =>
+    (printout t "> guess-order-1st-0" crlf)
     (if (> ?bp ?bp-1) then
         (if (eq (- ?bp ?bp-1) 2) then
             (assert (found-1st))
@@ -211,12 +236,11 @@
     )
     (assert (guess-computer (step ?s) (code $?pw)))
     (assert (guess (step ?s) (g (convert_code $?pw))))
-    (printout t "> guess-order-1st-0" crlf)
     (printout t (convert_code $?pw) " " $?pw crlf)
 )
 
 (defrule guess-order-1st-1
-    (colors-found)
+    (colors-found (v TRUE))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s-1) (code ?n2 ?n1 ?n3 ?n4))
     (guess-computer (step ?last-s) (code ?n3 ?n1 ?n2 ?n4))
@@ -225,6 +249,7 @@
     (test(eq ?last-s (- ?s 1)))
     (test(eq ?last-s-1 (- ?last-s 1)))
     =>
+    (printout t "> guess-order-1st-1" crlf)
     (if (> ?bp ?bp-1) then
         (if (eq (- ?bp ?bp-1) 2) then
             (assert (found-1st))
@@ -245,7 +270,6 @@
     )
     (assert (guess-computer (step ?s) (code $?pw)))
     (assert (guess (step ?s) (g (convert_code $?pw))))
-    (printout t "> guess-order-1st-1" crlf)
     (printout t (convert_code $?pw) " " $?pw crlf)
 )
 
