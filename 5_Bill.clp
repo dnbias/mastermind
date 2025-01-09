@@ -60,6 +60,52 @@
     return $?updated-list
 )
 
+(deffunction difference(?listA ?listB)
+    (bind ?i 1)
+    (bind ?j 1)
+    (bind ?la (length$ $?listA))
+    (bind ?lb (length$ $?listB))
+    (bind $?result (create$))
+    (while (<= ?i ?la)
+        (bind ?n (nth$ ?i $?listA))
+        (while (<= ?j ?lb)
+            (if (eq ?n (nth$ ?j $?listB)) then
+                (bind ?j (+ ?j 9))
+            )
+            (if (eq ?j ?lb) then
+                (bind $?result (insert$ $?result ?la ?n)))
+
+            (bind ?j (+ ?j 1))
+        )
+        (bind ?i (+ ?i 1))
+    )
+    return $?result
+)
+
+(deffunction changed-digit-0(?pw-1 ?pw)
+    (bind ?i 1)
+    (bind ?l (length$ $?pw))
+    (while (<= ?i ?l)
+        (if (neq (nth$ ?i $?pw-1) (nth$ ?i $?pw)) then
+            return (nth$ ?i $?pw)
+        )
+        (bind ?i (+ ?i 1))
+    )
+    return -1
+)
+
+(deffunction changed-digit-1(?pw-1 ?pw)
+    (bind ?i 1)
+    (bind ?l (length$ $?pw))
+    (while (<= ?i ?l)
+        (if (neq (nth$ ?i $?pw-1) (nth$ ?i $?pw)) then
+            return (nth$ ?i $?pw-1)
+        )
+        (bind ?i (+ ?i 1))
+    )
+    return -1
+)
+
 (defrule init-1
     (status (step 0) (mode computer))
     =>
@@ -70,20 +116,24 @@
 )
 
 (defrule init-1-hit
+    (not (hit-1st-half (v TRUE)))
     (status (step 1) (mode computer))
     (answer (step 0) (right-placed ?bp) (miss-placed ?wp))
     (guess-computer (step 0) (code $?pw-0))
     (test (eq (+ ?bp ?wp) 4))
     ?pc <- (possible-colors (colors $?cols))
     =>
-    (modify ?pc (colors (delete-member$ $?cols 5)))
-    (modify ?pc (colors (delete-member$ $?cols 6)))
-    (modify ?pc (colors (delete-member$ $?cols 7)))
-    (modify ?pc (colors (delete-member$ $?cols 8)))
     (printout t "> init-1-hit" crlf)
+
+    (bind $?cols (delete-member$ $?cols 5))
+    (bind $?cols (delete-member$ $?cols 6))
+    (bind $?cols (delete-member$ $?cols 7))
+    (bind $?cols (delete-member$ $?cols 8))
+    (modify ?pc (colors $?cols))
+
+    (bind $?pw (swap 1 2 $?pw-0))
     (assert (hit-1st-half (v TRUE)))
     (assert (colors-found (v TRUE)))
-    (bind $?pw (swap 1 2 $?pw-0))
     (assert (guess-computer (step 1) (code $?pw)))
     (assert (guess (step 1) (g (convert_code $?pw))))
     (printout t (convert_code $?pw) " " $?pw crlf)
@@ -102,19 +152,23 @@
 )
 
 (defrule init-2-hit
+    (not (hit-1st-half (v TRUE)))
+    (not (hit-2nd-half (v TRUE)))
     (status (step 2) (mode computer))
     (answer (step 1) (right-placed ?bp) (miss-placed ?wp))
     (guess-computer (step 1) (code $?pw-1))
     (test (eq (+ ?bp ?wp) 4))
     ?pc <- (possible-colors (colors $?cols))
     =>
-    (modify ?pc (colors (delete-member$ $?cols 1)))
-    (modify ?pc (colors (delete-member$ $?cols 2)))
-    (modify ?pc (colors (delete-member$ $?cols 3)))
-    (modify ?pc (colors (delete-member$ $?cols 4)))
+    (bind $?cols (delete-member$ $?cols 1))
+    (bind $?cols (delete-member$ $?cols 2))
+    (bind $?cols (delete-member$ $?cols 3))
+    (bind $?cols (delete-member$ $?cols 4))
+    (modify ?pc (colors $?cols))
+
+    (bind $?pw (swap 1 2 $?pw-1))
     (assert (hit-2nd-half (v TRUE)))
     (assert (colors-found (v TRUE)))
-    (bind $?pw (swap 1 2 $?pw-1))
     (assert (guess-computer (step 2) (code $?pw)))
     (assert (guess (step 2) (g (convert_code $?pw))))
     (printout t "> init-2-hit" crlf)
@@ -122,11 +176,12 @@
 )
 
 (defrule make-first-guess
-    ?guess-computer-0 <- (guess-computer (step 0) (code $?pw-0))
-    (answer (step 0) (right-placed ?bp-0) (miss-placed ?wp-0))
-    ?guess-computer-1 <- (guess-computer (step 1) (code $?pw-1))
-    (answer (step 1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (not (colors-found (v TRUE)))
     (status (step 2) (mode computer))
+    ?guess-computer-0 <- (guess-computer (step 0) (code $?pw-0))
+    ?guess-computer-1 <- (guess-computer (step 1) (code $?pw-1))
+    (answer (step 0) (right-placed ?bp-0) (miss-placed ?wp-0))
+    (answer (step 1) (right-placed ?bp-1) (miss-placed ?wp-1))
     ?pc <- (possible-colors (colors $?cols))
     =>
     (if (> ?bp-0 ?bp-1) then
@@ -151,13 +206,17 @@
 )
 
 (defrule make-guess
+    ;; (declare (salience 99))
+    (not (colors-found (v TRUE)))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s) (code $?pw))
     (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
-    (test(> ?s 2))
+    (test(>= ?s 2))
     (test(eq ?last-s (- ?s 1)))
     (possible-colors (colors $?cols))
     =>
+    (printout t "> make-guess " ?s crlf)
+
     (bind ?l (length$ $?cols))
     (bind ?roll1 (random 1 ?l))
     (bind ?pos1 (nth$ ?roll1 $?cols))
@@ -181,7 +240,6 @@
     (bind ?pw-n (create$ ?pos1 ?pos2 ?pos3 ?pos4))
     (assert (guess-computer (step ?s) (code ?pw-n)))
     (assert (guess (step ?s) (g (convert_code ?pw-n))))
-    (printout t "> make-guess" crlf)
     (printout t (convert_code ?pw-n)" "?pw-n crlf)
 )
 
@@ -194,17 +252,70 @@
     (test(> ?s 2))
     (test(eq ?last-s (- ?s 1)))
     (test(eq ?last-s-1 (- ?last-s 1)))
+    (test(eq 1 (length$ (difference $?pw-1 $?pw))))
     ?pc <- (possible-colors (colors $?cols))
     =>
+    (printout t "> rule-out-colors" crlf)
+    (bind ?score-0 (+ ?bp ?wp))
+    (bind ?score-1 (+ ?bp-1 ?wp-1))
+    (if (< ?score-0 ?score-1) then
+        (bind ?ch (changed-digit-0 ?pw-1 ?pw))
+    )
+    (if (> ?score-0 ?score-1) then
+        (bind ?ch (changed-digit-1 ?pw-1 ?pw))
+    )
+    (bind $?cols (delete-member$ $?cols ?ch))
+    (modify ?pc (colors $?cols))
+
     (bind ?l (length$ $?cols))
+
     (if (<= ?l 4) then
         (assert (colors-found (v TRUE)))
     )
-    (printout t "> rule-out-colors" crlf)
+
+)
+
+(defrule guess-order-1st
+    (declare (salience 99))
+    (not (found-1st (v TRUE)))
+    (not (found-2nd (v TRUE)))
+    (colors-found (v TRUE))
+    (status (step ?s) (mode computer))
+    (guess-computer (step ?last-s) (code ?n2 ?n1 ?n3 ?n4))
+    (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
+    (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
+    =>
+    (printout t "> guess-order-1st-0" crlf)
+    (if (> ?bp ?bp-1) then
+        (printout t "> bp increase" crlf)
+        (if (eq (- ?bp ?bp-1) 2) then
+            (assert (found-1st (v TRUE)))
+            (assert (found-2nd (v TRUE)))
+            (bind ?pw (create$ ?n2 ?n1 ?n4 ?n3))
+        else
+            (bind ?pw (create$ ?n3 ?n1 ?n2 ?n4))
+        )
+    else
+        (if (eq (- ?bp-1 ?bp) 2) then
+            (assert (found-1st (v TRUE)))
+            (assert (found-2nd (v TRUE)))
+            (bind ?pw (create$ ?n1 ?n2 ?n4 ?n3))
+        else
+            (bind ?pw (create$ ?n1 ?n3 ?n2 ?n4))
+        )
+    )
+    (assert (guess-computer (step ?s) (code $?pw)))
+    (assert (guess (step ?s) (g (convert_code $?pw))))
+    (printout t (convert_code $?pw) " " $?pw crlf)
 )
 
 (defrule guess-order-1st-0
+    (declare (salience 99))
     (colors-found (v TRUE))
+    (not (found-1st (v TRUE)))
+    (not (found-2nd (v TRUE)))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
     (guess-computer (step ?last-s) (code ?n2 ?n1 ?n3 ?n4))
@@ -239,6 +350,8 @@
 
 (defrule guess-order-1st-1
     (colors-found (v TRUE))
+    (not (found-1st (v TRUE)))
+    (not (found-3rd (v TRUE)))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s-1) (code ?n2 ?n1 ?n3 ?n4))
     (guess-computer (step ?last-s) (code ?n3 ?n1 ?n2 ?n4))
@@ -275,6 +388,7 @@
 (defrule guess-order-3rd-0
     (colors-found (v TRUE))
     (found-1st (v TRUE))
+    (not (found-2nd (v TRUE)))
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s-1) (code ?n1 ?n2 ?n3 ?n4))
     (guess-computer (step ?last-s) (code ?n1 ?n3 ?n2 ?n4))
@@ -305,6 +419,8 @@
     (guess-computer (step ?last-s) (code ?n1 ?n2 ?n4 ?n3))
     (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
     (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
     =>
     (if (> ?bp ?bp-1) then
         (printout t "> bp increase" crlf)
@@ -327,6 +443,8 @@
     (guess-computer (step ?last-s) (code ?n1 ?n4 ?n2 ?n3))
     (answer (step ?last-s-1) (right-placed ?bp-1) (miss-placed ?wp-1))
     (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
+    (test(eq ?last-s-1 (- ?last-s 1)))
     =>
     (bind ?pw (create$ ?n1 ?n2 ?n4 ?n3))
     (assert (guess-computer (step ?s) (code $?pw)))
@@ -342,6 +460,7 @@
     (status (step ?s) (mode computer))
     (guess-computer (step ?last-s) (code ?n1 ?n2 ?n3 ?n4))
     (answer (step ?last-s) (right-placed ?bp) (miss-placed ?wp))
+    (test(eq ?last-s (- ?s 1)))
     =>
     (bind ?pw (create$ ?n1 ?n2 ?n4 ?n3))
     (assert (guess-computer (step ?s) (code $?pw)))
